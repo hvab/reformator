@@ -2,7 +2,7 @@
 // Copyright Art. Lebedev | http://www.artlebedev.ru/
 // License: BSD | http://opensource.org/licenses/BSD-3-Clause
 // Author: Vladimir Tokmakov | vlalek
-// Updated 2016-05-12
+// Updated 2025-01-21
 
 
 var reformator = {
@@ -22,6 +22,7 @@ var reformator = {
 	, elements_by_tag_name: {}
 	, elements_by_class_name: {nbsp: {}}
 	, sidebar_file_name: 'sidebar.html'
+	, editor_file_name: 'editor.css'
 
 	, init_class: function(params){
 		this[params.name] = {};
@@ -55,7 +56,7 @@ var reformator = {
 				, i = 0
 			;
 			while(i < script_elements.length && !matches){
-				matches = script_elements[i].src.match(/^(.*)reformator.*\.js$/);
+				matches = script_elements[i].src.match(/^(.*)reformator.*\.js(\?.*)?$/);
 				i++;
 			};
 			this.root_path = matches ? matches[1]: './';
@@ -63,7 +64,7 @@ var reformator = {
 		if(params.css_path){
 			this.css_path = params.css_path;
 		}else{
-			this.css_path = this.root_path + 'editor.css';
+			this.css_path = this.root_path + this.editor_file_name;
 		}
 		if(params.bar_path){
 			this.bar_path = params.bar_path;
@@ -144,6 +145,16 @@ var reformator = {
 };
 
 
+reformator.js = {};
+
+
+reformator.js.is_array = ('isArray' in Array)
+	? Array.isArray 
+	: function (value){
+		return Object.prototype.toString.call(value) === '[object Array]';
+	};
+
+
 reformator.editor = function(element, params){
 	//try{
 		if(element.reformator){
@@ -198,7 +209,7 @@ reformator.editor.prototype = {
 
 		this.wysiwyg = new reformator.wysiwyg(this, this.element.getElementsByTagName('iframe')[0], text, p);
 
-		this.resizer = {element: this.element.getElementsByTagName('ins')[0]};
+		this.resizer = {element: this.element.getElementsByTagName('ins')[1]};
 
 		var t = this;
 		setTimeout(// For IE 6, FF 2
@@ -252,7 +263,7 @@ reformator.editor.prototype = {
 		layer.className = element.className + ' reformator reformator_inactive';
 		element.className = 'reformator_source';
 
-		layer.innerHTML = '<iframe frameborder="no" class="reformator_wysiwyg" style="display: none;"></iframe><div class="min"></div><ins class="resizer"></ins>';
+		layer.innerHTML = '<iframe frameborder="no" class="reformator_wysiwyg" style="display: none;"></iframe><ins class="min"></ins><ins class="resizer"></ins>';
 		layer.unselectable = 'on';
 		element.parentNode.insertBefore(layer, element);
 		layer.appendChild(element);
@@ -437,8 +448,11 @@ reformator.editor.prototype = {
 			}
 			reformator.current = this;
 			this.focused = true;
-			if(this.control_class && reformator.control.element){
-				reformator.dom_element.add_class(reformator.control.element, this.control_class);
+			if(reformator.control.element){
+				reformator.dom_element.add_class(reformator.control.element, 'active');
+				if(this.control_class){
+					reformator.dom_element.add_class(reformator.control.element, this.control_class);
+				}
 			}
 			reformator.dom_element.add_class(this.element, 'reformator_current');
 			if(from_reformator.edited){
@@ -459,8 +473,11 @@ reformator.editor.prototype = {
 		if(this.focused){
 			this.focused = false;
 			reformator.dom_element.remove_class(this.element, 'reformator_current');
-			if(this.control_class && reformator.control.element){
-				reformator.dom_element.remove_class(reformator.control.element, this.control_class);
+			if(reformator.control.element){
+				reformator.dom_element.remove_class(reformator.control.element, 'active');
+				if(this.control_class){
+					reformator.dom_element.remove_class(reformator.control.element, this.control_class);
+				}
 			}
 			reformator.control.refresh();
 		}
@@ -471,6 +488,8 @@ reformator.editor.prototype = {
 		if(this.wysiwyg.edited){
 			this.source.set(this.wysiwyg.get());
 		}
+		var actived = this.actived;
+		this.actived = false;
 		this.current = this.source;
 		var i = this.source.element.value ? this.source.element.value.indexOf(this.autotypograph_cancel_label) : -1;
 		if(this.autotypograph){
@@ -494,6 +513,7 @@ reformator.editor.prototype = {
 		}else if(i == -1){
 			this.source.element.value += this.autoclear_cancel_label;
 		}
+		this.actived = actived;
 	}
 
 	, set_autoformat: function(value){
@@ -763,6 +783,7 @@ reformator.wysiwyg.prototype = {
 			, 'keydown'
 			, function(event){
 				event = reformator.dom_element.normalize_event(event);
+				reformator.key_code = event.keyCode;
 				if(event.ctrlKey || event.metaKey){
 					if(
 						event.key_code == 89
@@ -849,8 +870,13 @@ reformator.wysiwyg.prototype = {
 						//!t.wysiwyg._update_selection();
 						t.check_for_paragraph();
 					}else if(
-						(event.ctrlKey || event.metaKey)
-						&& event.key_code == 86
+						(
+							(event.ctrlKey || event.metaKey)
+							&& event.key_code == 86
+						) || (
+							(event.keyCode == 91 || event.keyCode == 93)
+							&& reformator.key_code == 86
+						)
 					){
 						// ctrl+v
 						if(t.editor.autoclear){
@@ -1542,7 +1568,7 @@ reformator.wysiwyg.prototype = {
 			element.className = '';
 		}
 		if(params.attributes){
-			if(!params.attributes.length || !params.attributes.sort){
+			if(!reformator.js.is_array(params.attributes)){
 				params.attributes = [params.attributes];
 			}
 			for(var i = 0; i < params.attributes.length; i++){
@@ -1916,7 +1942,7 @@ reformator.bar = {
 		this.element.id = 'reformator_bar';
 		this.element.innerHTML = '<iframe frameborder="no"></iframe>';
 		var t = this;
-		setTimeout(function(){ // For IE 6
+		setTimeout(function(){ // For IE 6 
 			document.body.appendChild(t.element);
 			t.element.firstChild.src = reformator.bar_path;
 			if(!document.cookie || document.cookie.indexOf('reformator_bar=hidden') < 0){
@@ -1950,7 +1976,7 @@ reformator.control = {
 					element: elements[i]
 					, action: command[1]
 					, option: command[2]
-
+					
 				});
 			}
 		}
@@ -2901,10 +2927,10 @@ reformator.dom_element = {
 	, listeners: []
 
 	, fire_event: function(elements, events){
-		if(!elements.sort){
+		if(!reformator.js.is_array(elements)){
 			elements = [elements];
 		}
-		if(!events.sort){
+		if(!reformator.js.is_array(events)){
 			events = [events];
 		}
 		for(var i = 0, ii, event; i < elements.length; i++){
@@ -2930,13 +2956,13 @@ reformator.dom_element = {
 	}
 
 	, add_event_listener: function(element, event, listener){
-		if(element.length && element.sort){
+		if(reformator.js.is_array(element)){
 			for(var i = 0; i < element.length; i++){
 				this.add_event_listener(element[i], event, listener);
 			}
 			return;
 		}
-		if(!event.match && event.length){
+		if(!event.match && reformator.js.is_array(event)){
 			for(var i = 0; i < event.length; i++){
 				this.add_event_listener(element, event[i], listener);
 			}
@@ -2954,13 +2980,13 @@ reformator.dom_element = {
 	}
 
 	, remove_event_listener: function(element, event, listener){
-		if(element.length && element.sort){
+		if(reformator.js.is_array(element)){
 			for(var i = 0; i < element.length; i++){
 				this.remove_event_listener(element[i], event, listener);
 			}
 			return;
 		}
-		if(!event.match && event.length){
+		if(!event.match && reformator.js.is_array(event.length)){
 			for(var i = 0; i < event.length; i++){
 				this.remove_event_listener(element, event[i], listener);
 			}
@@ -3766,7 +3792,7 @@ reformator.html = {
 			, address:    {block: true, inline_only: true}
 			, applet:     {deprecated: true, remove: true}
 			, area:       {empty: true, parents: {map: {}}, attributes: {alt: {}, coords: {}, href: {}, shape: {}}}
-			, audio:      {block: true, inline: true, attributes: {src: {}, controls: {}, autoplay: {}, preload: {}, loop: {}}, can_be_empty: true}
+			, audio:      {block: true, inline: true, attributes: {src: {}, controls: {}, autoplay: {}, preload: {}, loop: {}}, can_be_empty: true}        
 			, b:          {inline: true, replace_with: 'strong'}
 			, base:       {empty: true, parents: {head: {}}, attributes: {href: {}}}
 			, bdo:        {inline: true, attributes: {dir: {}}}
@@ -3790,7 +3816,7 @@ reformator.html = {
 			, dl:         {block: true, children: {dt: {}, dd: {}}}
 			, dt:         {block: true, inline_only: true, parents: {dl: {}}}
 			, em:         {inline: true}
-			, embed:      {block: true, inline: true, attributes: {src: {}, type: {}, allowfullscreen: '', width: {}, height: {}}, can_be_empty: true}
+			, embed:      {block: true, inline: true, attributes: {src: {}, type: {}, allowfullscreen: {}, width: {}, height: {}}, can_be_empty: true}       
 			, fieldset:   {block: true}
 			, font:       {inline: true, deprecated: true, remove: true}
 			, form:       {block: true, attributes: {id: {}, name: {}, action: {}, method: {}}}
@@ -3808,7 +3834,7 @@ reformator.html = {
 			, i:          {inline: true, replace_with: 'em'}
 			, iframe:     {block: true, attributes: {name: {}, src: {}, width: {}, height: {}}}
 			, img:        {inline: true, empty: true, attributes: {src: {}, alt: {}, width: {}, height: {}, usemap: {}}}
-			, input:      {inline: true, empty: true, attributes: {id: {}, name: {}, value: {}, checked: {}, type: {}, length: {}, maxlength: {}}}
+			, input:      {inline: true, empty: true, attributes: {id: {}, name: {}, value: {}, checked: {}, type: {}, length: {}, maxlength: {}}}          
 			, ins:        {block: true, inline: true}
 			, isindex:    {block: true, empty: true, deprecated: true, remove: true, attributes: {prompt: {}}}
 			, kbd:        {inline: true}
@@ -3843,10 +3869,10 @@ reformator.html = {
 			, sup:        {inline: true}
 			, table:      {block: true, children: {caption: {}, thead: {}, tbody: {}, tfoot: {}, tr: {}, td: {}, th:{}}}
 			, tbody:      {block: true, parents: {table: {}}, children: {tr: {}, td: {}, th:{}}}
-			, td:         {block: true, can_be_empty: true, parents: {tr: {}}, attributes: {colspan: {null_value: '1'}, rowspan: {null_value: '1'}}}
+			, td:         {block: true, can_be_empty: true, parents: {tr: {}}, attributes: {colspan: {null_value: '1'}, rowspan: {null_value: '1'}}}     
 			, textarea  : {can_be_empty: true, attributes: {id: {}, name: {}, value: {}, cols: {}, rows: {}}}
 			, tfoot:      {block: true, parents: {table: {}}, children: {tr: {}, td: {}, th:{}}}
-			, th:         {block: true, can_be_empty: true, parents: {tr: {}}, attributes: {colspan: {null_value: '1'}, rowspan: {null_value: '1'}}}
+			, th:         {block: true, can_be_empty: true, parents: {tr: {}}, attributes: {colspan: {null_value: '1'}, rowspan: {null_value: '1'}}}     
 			, thead:      {block: true, parents: {table: {}}, children: {tr: {}, td: {}, th:{}}}
 			, title:      {parents: {head: {}}}
 			, tr:         {block: true, parents: {table: {}, tbody: {}, thead: {}, tfoot: {}}, children: {td: {}, th:{}}}
@@ -4146,6 +4172,7 @@ reformator.typograph = {
 			entity_type_for_shy: 1,
 			entity_type_for_special: 1,
 
+			preserve_hidden_space: false,
 			preserve_original_nbsp: false,
 			symbols_number_for_nbsp: 2,
 
@@ -4267,7 +4294,7 @@ reformator.typograph = {
 				this.params.quotation_marks_b = 'lsquo rsquo'; // ‘ ’
 				break;
 		}
-	// to do:
+	// to do: 
 	// en
 	// double space after ! and ?
 	// 	. and , inside quotes
@@ -4294,6 +4321,11 @@ reformator.typograph = {
 			this.replace('[″«»“”„‹›]', 'g', '"');
 		}
 
+		// replace hidden space
+		if(!this.params.preserve_hidden_space){
+			this.replace('[' + String.fromCharCode(8203) + String.fromCharCode(8204) + String.fromCharCode(8205) + ']', 'g', '');
+		}
+
 		// replace nbsp
 		if(!this.params.preserve_original_nbsp){
 			this.replace(this.e.nbsp[0], 'g', '\x20');
@@ -4301,7 +4333,7 @@ reformator.typograph = {
 
 		// replace dash
 		if(!this.params.preserve_original_minus){
-			this.replace('([\xC2\x96\xC2\x97–—−]|(^|[^-])--(?!\\s*-))', 'g', '$2—');
+			this.replace('([\xC2\x96\xC2\x97–—]|(^|[^-])--(?!\\s*-))', 'g', '$2—');
 		}
 
 		// replace spaces
@@ -4339,11 +4371,11 @@ reformator.typograph = {
 		// place apostrophe
 		this.replace('(' + this.p.letters + '{2})(\')(?=' + this.p.letters + '{0,2}' + this.p.word_end_0s+ ')', 'g', '$1'+ this.e.rsquo[0]);
 
-		// place ndash
+		// place mdash
 		// -_
-		this.replace('(\\n' + this.p.tag + '\\s*' + this.p.tag + '\\s*|' + this.p.sentence_end + '\x20' + this.p.tag + ')[\\-\\—](' + this.p.tag + ')\x20', 'g', '$1' + this.e.ndash[0] + '$2' + this.e.nbsp[0]);
+		this.replace('(\\n' + this.p.tag + '\\s*' + this.p.tag + '\\s*|' + this.p.sentence_end + '\x20' + this.p.tag + ')[\\-\\—](' + this.p.tag + ')\x20', 'g', '$1' + this.e.mdash[0] + '$2' + this.e.nbsp[0]);
 		// _-
-		this.replace('(' + this.p.letters_digits + this.p.word_end_0 + ')\x20(' + this.p.tag + ')[\\-\\—](?=' + this.p.tag + '\x20)', 'g', '$1' + this.e.nbsp[0] + '$2' + this.e.ndash[0]);
+		this.replace('(' + this.p.letters_digits + this.p.word_end_0 + ')\x20(' + this.p.tag + ')[\\-\\—](?=' + this.p.tag + '\x20)', 'g', '$1' + this.e.nbsp[0] + '$2' + this.e.mdash[0]);
 		return;
 	},
 
@@ -4351,7 +4383,7 @@ reformator.typograph = {
 	open_nobr: function(){
 		var t = this;
 		if(this.params.nobr && !this.params.no_tags){
-			this.tag_counter.inc++;
+			this.tag_counter++;
 			this.tags[this.tag_counter] = '<nobr>';
 		// pochemu-to
 			//this.replace('(\\s|^)(?=' + this.p.word_begin_0 + this.p.letters + '+' + this.p.tag + '[\\-\\—]' + this.p.letters + '{1,' + this.params.symbols_number_for_nobr + '}' + this.p.word_end_0s + ')', 'g', function(str, s1){return s1 + t.p.tag_begin + t.tag_counter + t.p.tag_end;});
@@ -4390,7 +4422,7 @@ reformator.typograph = {
 		// bla_/ bla
 		this.replace('\x20([\\/\\|])\x20', 'g', this.e.nbsp[0] + '$1\x20');
 
-		// 600_rubley, 500_GHz or 200_km or 60_km/h
+		// 600_rubley, 500_GHz or 200_km or 60_km/h 
 		this.replace('((?:' + this.p.number + '|' + this.p.roman_number + ')' + this.p.nulls + ')\x20(?=' + this.p.tag + '(' + this.p.letters + '+' + this.p.word_end_1s + '|' + this.p.letters_upper + '{2}|' + this.p.letters + '+\\/|(?!' + this.p.exceptions_right + this.p.word_end_0s + ')' + this.p.letters + '{1,' + this.params.symbols_number_for_nbsp + '}' + this.p.word_end_0s + '))', 'g', '$1&_;');
 
 		// Usome 1, Usome 1 Usome
@@ -4464,7 +4496,7 @@ reformator.typograph = {
 
 
 	post_process: function(){
-		// to do:
+		// to do: 
 		// place prime
 		this.replace('(\\d\\s*)(\')(?=' + this.p.word_end_0s + ')', 'g', '$1' + this.e.prime[0]);
 		this.replace('(\\d\\s*)(\\")(?=' + this.p.word_end_0s + ')', 'g', '$1' + this.e.Prime[0]);
@@ -4595,7 +4627,7 @@ reformator.typograph = {
 
 		// letters
 
-		this.p.letters_lower     = reformator.language.lower_letters + '&%©\\$€£¥¤' + String.fromCharCode(769);
+		this.p.letters_lower     = reformator.language.lower_letters + '&%©\\$€£¥¤₽' + String.fromCharCode(769);
 		this.p.letters_upper     = reformator.language.upper_letters;
 		this.p.not_letters_upper = '[^' + this.p.letters_upper + ']';
 		this.p.letters           = this.p.letters_lower + this.p.letters_upper;

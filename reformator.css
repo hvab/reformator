@@ -15,7 +15,7 @@
 		margin-right: 12px ! important;
 	}
 	html.reformator_bar_visible body {
-		margin-right: 15em ! important;
+		margin-right: 20em ! important;
 	}
 	html body.reformator_maximize {
 		position: relative ! important;
@@ -34,7 +34,7 @@
 		min-height: 0 ! important;
 		max-height: auto ! important;
 		margin: 0 ! important;
-		/* padding: 0 ! important; */
+		padding: 0 ! important;
 		border: 0 hidden ! important;
 	}
 	.with_reformator .reformator_maximize table {
@@ -58,7 +58,7 @@
 		box-shadow: 0 -5px 10px 1px rgba(0, 0, 0, 0.2);
 	}
 	.reformator_bar_visible #reformator_bar {
-		width: 15em ! important;
+		width: 20em ! important;
 	}
 	#reformator_bar iframe {
 		position: absolute ! important;
@@ -76,11 +76,12 @@
 	}
 	.with_reformator .reformator .min {
 		height: 60px;
+		display: block;
 	}
-	.with_reformator .reformator_wysiwyg,
-	.with_reformator .reformator_source,
-	.with_reformator .reformator .resizer {
-		border: 1px solid #ccc ! important;
+	.reformator_wysiwyg,
+	.reformator_source,
+	.reformator .resizer {
+		border: 1px solid #ccc;
 		overflow: auto ! important;
 	}
 	.with_reformator input.reformator_source {
